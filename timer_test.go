@@ -21,7 +21,7 @@ func checkoutTime() timeFunc {
 
 func TestTime(t *testing.T) {
 	dfs := make(chan *delayFunc, 10)
-	h := NewHashTimer(context.Background(), dfs)
+	h := NewHashTimer(context.Background(), 10)
 	h.Run()
 	curTime := NowTime()
 	t.Run("123", func(t *testing.T) {

@@ -47,27 +47,25 @@ type hashTimer struct {
 	ctx context.Context
 	cancel context.CancelFunc
 	// 消息channel
-	dfC chan *delayFunc
+	DfC chan *delayFunc
 	// mutex
 	mutex sync.Mutex
 	// state
 	State int
-	// 提供给调用者判断其是否终止的通道
-	Done chan struct{}
 	// tid -> time
 	tidMapTime map[uint32]int64
 
 }
 
 // 调用者需要提供ctx 以及接受消息函数的通道
-func NewHashTimer(ctx context.Context, dfC chan *delayFunc) *hashTimer {
+func NewHashTimer(ctx context.Context, dfcLength int) *hashTimer {
 	ctx1, cancel := context.WithCancel(ctx)
 	return &hashTimer{
 		timers: make(map[int64]map[uint32]*Timer, 10),
 		ctx: ctx1,
 		cancel: cancel,
 		tidMapTime: make(map[uint32]int64, 10),
-		dfC: dfC,
+		DfC: make(chan *delayFunc, dfcLength),
 		State: TIMER_READY,
 	}
 }
@@ -140,7 +138,7 @@ func (h *hashTimer)Stop() {
 	}
 	h.State = TIMER_STOP
 	h.cancel()
-	h.Done <- struct{}{}
+	close(h.DfC)
 }
 
 func tick(h *hashTimer) {
@@ -155,7 +153,7 @@ func tick(h *hashTimer) {
 		if m, ok := h.timers[i]; ok {
 			for _, t := range m {
 				select {
-					case h.dfC <- t.df:
+					case h.DfC <- t.df:
 						delete(h.tidMapTime, t.tid)
 					default:
 						h.Stop()
